@@ -11,6 +11,7 @@
 A powerful command-line chat application that lets you interact with Google's state-of-the-art Gemini AI language model. This application provides an intuitive interface for natural conversations with an AI assistant right in your terminal.
 
 <div align="center">
+[![Watch the video](https://drive.google.com/file/d/1g2boXnZLzcX1HwLo0E7O45On-CrVuEg_/view?usp=sharing)]
 
 ![Demo Animation](https://i.imgur.com/YourDemoGif.gif)
 *Animated demo will appear here*
@@ -84,15 +85,11 @@ python cli_chat.py
                  GEMINI CLI CHAT BOT
 =============================================================
 • Interactive chat powered by Google's Gemini AI
-• Type 'exit' or 'bye' to end the conversation
-• Press Ctrl+C at any time to exit
+• Smart and helpful CLI assistant
+• Exit intent detection implemented bot
 =============================================================
 
 Initializing Gemini chat...
-
-🤖 Welcome to the Gemini CLI Chat! 🤖
-Type 'exit' or 'bye' to end the conversation.
-==================================================
 
 😊 You: Hello, who are you?
 
@@ -213,7 +210,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/gemini-cli-chat/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Alphamoris/CLI_chatbot.git).
 
 ## 📚 References
 
@@ -225,6 +222,6 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 <div align="center">
 
-Made with ❤️ by Your Name
+Made with ❤️ by Alphamoris
 
 </div> 
