@@ -39,8 +39,8 @@ A powerful command-line chat application that lets you interact with Google's st
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/yourusername/gemini-cli-chat.git
-cd gemini-cli-chat
+git clone https://github.com/Alphamoris/CLI_chatbot.git
+cd CLI_chatbot
 ```
 
 2. **Install dependencies**
