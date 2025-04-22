@@ -10,11 +10,10 @@
 
 A powerful command-line chat application that lets you interact with Google's state-of-the-art Gemini AI language model. This application provides an intuitive interface for natural conversations with an AI assistant right in your terminal.
 
-<div align="center">
-![Watch the video](https://drive.google.com/file/d/1g2boXnZLzcX1HwLo0E7O45On-CrVuEg_/view?usp=sharing)
+[Watch the video](https://drive.google.com/file/d/1g2boXnZLzcX1HwLo0E7O45On-CrVuEg_/view?usp=sharing)
 
-![Demo Animation](https://i.imgur.com/YourDemoGif.gif)
-*Animated demo will appear here*
+<div align="center">
+
 
 </div>
 
