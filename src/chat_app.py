@@ -124,6 +124,26 @@ feedback_function = {
     }
 }
 
+# Define function schema for exit intent detection
+exit_intent_function = {
+    "name": "detect_exit_intent",
+    "description": "Detect if the user wants to end the conversation",
+    "parameters": {
+        "type": "OBJECT",
+        "properties": {
+            "is_exit_intent": {
+                "type": "BOOLEAN",
+                "description": "Whether the message indicates the user wants to end the conversation"
+            },
+            "confidence": {
+                "type": "NUMBER",
+                "description": "Confidence level (0-1) that this is an exit intent"
+            }
+        },
+        "required": ["is_exit_intent"]
+    }
+}
+
 class ChatBot:
     """Main ChatBot class for handling Gemini AI interactions"""
     
@@ -152,16 +172,14 @@ class ChatBot:
                 system_instruction=(
                     "You are a helpful AI assistant. Be concise, friendly, and precise in your answers. "
                     "If you don't know something, say so rather than making up information. "
-                    "Pay attention when users provide feedback about the conversation in casual language."
+                    "Pay attention when users provide feedback about the conversation in casual language. "
+                    "Also detect when users want to end the conversation through phrases like 'bye', 'exit', "
+                    "'end chat', 'quit', 'goodbye', 'leave', 'stop', or similar exit intents."
                 ),
-                tools=[feedback_function]
+                tools=[feedback_function, exit_intent_function]
             )
             self.chat = self.model.start_chat(history=[])
             
-            self.exit_phrases = [
-                "bye", "exit", "end chat", "quit", "goodbye", 
-                "leave", "i want to leave", "stop", "end", "close"
-            ]
             self.max_retries = 3
             logger.info(f"ChatBot initialized successfully with chat_id={self.chat_id}")
         except Exception as e:
@@ -170,7 +188,7 @@ class ChatBot:
     
     def detect_exit_intent(self, message: str) -> bool:
         """
-        Check if the user message indicates they want to exit
+        Check if the user message indicates they want to exit using the model
         
         Args:
             message: User's input message
@@ -178,8 +196,31 @@ class ChatBot:
         Returns:
             bool: True if exit intent detected, False otherwise
         """
-        return any(phrase in message.lower() for phrase in self.exit_phrases)
-    
+        try:
+            # Create a separate call to determine exit intent
+            response = self.model.generate_content(
+                f"Does this message indicate the user wants to end the conversation? Message: '{message}'",
+                tools=[exit_intent_function],
+                tool_choice={"function": "detect_exit_intent"}
+            )
+            
+            # Check if there's a function call in the response
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'function_call') and part.function_call.name == "detect_exit_intent":
+                        try:
+                            args = json.loads(part.function_call.args)
+                            if args.get("is_exit_intent", False):
+                                return True
+                        except (json.JSONDecodeError, ValueError) as e:
+                            logger.warning(f"Error parsing exit intent function call: {e}")
+            
+            return False
+        
+        except Exception as e:
+            logger.error(f"Error detecting exit intent: {e}")
+
+            
     def detect_feedback_in_message(self, message: str) -> Optional[Tuple[str, int]]:
         """
         Detect if a user message contains feedback and rating using local pattern matching
@@ -293,16 +334,16 @@ class ChatBot:
             print("Sorry, I couldn't process your feedback correctly.")
             return None
     
-    def send_message(self, message: str) -> Tuple[str, Optional[Tuple[str, int]]]:
+    def send_message(self, message: str) -> Tuple[str, Optional[Tuple[str, int]], bool]:
         """
         Send a message to the Gemini AI and get a response
-        Also detect if the message contains feedback
+        Also detect if the message contains feedback or exit intent
         
         Args:
             message: User's message
             
         Returns:
-            Tuple[str, Optional[Tuple[str, int]]]: AI response and feedback tuple if detected
+            Tuple[str, Optional[Tuple[str, int]], bool]: AI response, feedback tuple if detected, exit intent flag
         """
         for attempt in range(self.max_retries):
             try:
@@ -317,9 +358,11 @@ class ChatBot:
                 
                 # Check if Gemini detected feedback via function calling
                 feedback_from_model = None
+                exit_intent_detected = False
                 
                 for candidate in response.candidates:
                     for part in candidate.content.parts:
+                        # Check for feedback function call
                         if hasattr(part, 'function_call') and part.function_call.name == "collect_feedback":
                             try:
                                 args = json.loads(part.function_call.args)
@@ -330,26 +373,39 @@ class ChatBot:
                                         feedback_from_model = (review, int(float(rating)))
                             except (json.JSONDecodeError, ValueError) as e:
                                 logger.warning(f"Error parsing function call args: {e}")
+                        
+                        # Check for exit intent function call
+                        elif hasattr(part, 'function_call') and part.function_call.name == "detect_exit_intent":
+                            try:
+                                args = json.loads(part.function_call.args)
+                                if args.get("is_exit_intent", False):
+                                    exit_intent_detected = True
+                            except (json.JSONDecodeError, ValueError) as e:
+                                logger.warning(f"Error parsing exit intent function call: {e}")
                 
-                # Prioritize local pattern matching over model detection
+                # Prioritize local pattern matching over model detection for feedback
                 final_feedback = feedback_result or feedback_from_model
                 
-                return response.text, final_feedback
+                # If no exit intent was detected through function calling, check manually
+                if not exit_intent_detected:
+                    exit_intent_detected = self.detect_exit_intent(message)
+                
+                return response.text, final_feedback, exit_intent_detected
                 
             except genai.types.generation_types.BlockedPromptException as e:
                 logger.warning(f"Blocked prompt: {e}")
-                return "I'm unable to respond to that request. Let's talk about something else.", None
+                return "I'm unable to respond to that request. Let's talk about something else.", None, False
             except (ConnectionError, TimeoutError) as e:
                 logger.warning(f"Connection error on attempt {attempt+1}/{self.max_retries}: {e}")
                 if attempt == self.max_retries - 1:
-                    return "Sorry, I'm having trouble connecting to the AI service. Please check your internet connection and try again later.", None
+                    return "Sorry, I'm having trouble connecting to the AI service. Please check your internet connection and try again later.", None, False
             except Exception as e:
                 logger.error(f"Error on attempt {attempt+1}/{self.max_retries}: {str(e)}")
                 if attempt == self.max_retries - 1:
-                    return "I'm having difficulty processing your request. Could you try rephrasing or asking something else?", None
+                    return "I'm having difficulty processing your request. Could you try rephrasing or asking something else?", None, False
         
         # Default fallback
-        return "I couldn't process your request. Please try again.", None
+        return "I couldn't process your request. Please try again.", None, False
     
     def run(self):
         """Run the chatbot conversation loop"""
@@ -365,26 +421,8 @@ class ChatBot:
                 if not user_message:
                     continue
                 
-                # Check for exit intent
-                if self.detect_exit_intent(user_message):
-                    # Get feedback directly without confirmation
-                    feedback = self.get_exit_feedback()
-                    
-                    if feedback:
-                        if feedback.get("rating") is not None:
-                            save_feedback(feedback["review"], feedback["rating"], self.chat_id)
-                        else:
-                            # Save feedback without rating
-                            review = feedback.get("review", "Good conversation")
-                            save_feedback(review, 0, self.chat_id)
-                        
-                    
-                    print("\n🤖 Bot : Thank you for chatting! Goodbye! 👋")
-                    conversation_active = False
-                    continue
-                
-                # Send message to Gemini and get response with potential feedback
-                bot_response, feedback_result = self.send_message(user_message)
+                # Send message to Gemini and get response with potential feedback and exit intent
+                bot_response, feedback_result, exit_intent = self.send_message(user_message)
                 
                 # If feedback was detected, save it and acknowledge
                 if feedback_result:
@@ -398,6 +436,23 @@ class ChatBot:
                 
                 # Save chat history
                 save_chat_history(user_message, bot_response, self.chat_id)
+                
+                # Check for exit intent
+                if exit_intent:
+                    # Get feedback directly without confirmation
+                    feedback = self.get_exit_feedback()
+                    
+                    if feedback:
+                        if feedback.get("rating") is not None:
+                            save_feedback(feedback["review"], feedback["rating"], self.chat_id)
+                        else:
+                            # Save feedback without rating
+                            review = feedback.get("review", "Good conversation")
+                            save_feedback(review, 0, self.chat_id)
+                    
+                    print("\n🤖 Bot : Thank you for chatting! Goodbye! 👋")
+                    conversation_active = False
+                    continue
                 
             except KeyboardInterrupt:
                 logger.info("Chat ended by KeyboardInterrupt")

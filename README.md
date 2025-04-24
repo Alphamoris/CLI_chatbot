@@ -20,10 +20,11 @@ A powerful command-line chat application that lets you interact with Google's st
 ## ✨ Features
 
 - 🗣️ **Interactive Chat Interface** - Natural conversation with Google's Gemini AI
-- 🔍 **Smart Exit Detection** - Automatically detects when you want to end the chat
+- 🔍 **AI-Powered Exit Detection** - The model itself determines when you want to end the chat
 - 📊 **Feedback Collection** - Gathers reviews and ratings through natural conversation
 - 🔄 **Natural Feedback Detection** - Recognizes casual feedback in conversation (e.g., "I'd give this chat a 4/5")
 - 💡 **Smart Feedback Extraction** - Extracts ratings and reviews from natural language responses
+- 🔀 **Automatic Model Fallback** - Seamlessly switches to alternative models if rate limits are hit
 - 💾 **Conversation History** - Saves your chat sessions for future reference
 - 🎨 **Colorful Interface** - Easy-to-read, aesthetically pleasing terminal output
 - 🛡️ **Robust Error Handling** - Detailed error messages and recovery options
@@ -189,9 +190,10 @@ This verifies:
 
 You can modify these parameters in `src/chat_app.py`:
 
-- **Model**: Change `model_name` in the ChatBot constructor
+- **Primary Model**: Change `primary_model_name` in the ChatBot constructor
+- **Fallback Model**: Adjust `fallback_model_name` for rate limit fallback
 - **Temperature**: Adjust creativity level (0.0-1.0)
-- **Exit phrases**: Customize words that trigger conversation ending
+- **Max Retries**: Configure `max_retries` for API call attempts
 
 ## 📊 Feedback Collection
 
@@ -212,8 +214,42 @@ All feedback is saved to `data/feedback.txt` with timestamps and chat session ID
 2. Your messages are sent securely to Gemini's servers
 3. The AI generates responses based on its training
 4. For feedback detection, the app uses both pattern matching and Gemini's function calling to recognize casual feedback
-5. When exiting, the app uses natural language processing to extract feedback from your response
-6. The feedback is saved automatically with acknowledgment
+5. For exit detection, the app uses Gemini's function calling to let the AI decide when you want to end the conversation
+6. If rate limits are encountered, the app automatically switches to an alternative model
+7. When exiting, the app uses natural language processing to extract feedback from your response
+8. The feedback is saved automatically with acknowledgment
+
+## 🌟 AI-Powered Features
+
+### Intelligent Exit Detection
+
+Unlike traditional chatbots that use fixed phrases to detect when you want to leave, this chatbot uses Gemini's AI to understand natural exit intentions:
+
+- The AI recognizes subtle cues that indicate you want to end the conversation
+- It understands variations like "I need to go now", "let's wrap up", or "I'm finished"
+- If network issues occur, there's a fallback mechanism to traditional exit detection
+
+### Smart Rate Limit Handling
+
+The application intelligently handles API rate limits to ensure a smooth experience:
+
+- Automatically detects when rate limits are reached (429 errors)
+- Seamlessly switches from gemini-1.5-pro to gemini-1.0-pro when needed
+- Preserves conversation history when switching between models
+- Provides graceful degradation instead of abrupt failures
+
+### Natural Feedback Collection
+
+The application collects feedback in two ways:
+
+1. **During Conversation**: The app detects feedback mentioned casually during conversation (e.g., "I'd give this chat a 4/5" or "This has been a 5-star experience")
+
+2. **When Exiting**: Upon detecting exit intent, the bot directly asks for feedback in a natural way:
+   - Users can provide both review and rating in a single natural language response
+   - The system intelligently extracts the rating from the review text
+   - If no rating is found, it will ask specifically for a rating
+
+All feedback is saved to `data/feedback.txt` with timestamps and chat session IDs.
 
 ## 📝 License
 
