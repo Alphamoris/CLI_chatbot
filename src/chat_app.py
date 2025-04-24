@@ -13,7 +13,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("chat_app.log"),
+        logging.FileHandler("chat_app.log", encoding="utf-8"),
         logging.StreamHandler()
     ]
 )
@@ -67,7 +67,7 @@ def save_feedback(review: str, rating: int, chat_id: str = None) -> bool:
             f.write(f"Rating: {rating}/5\n")
             f.write(f"Review: {review}\n")
             f.write("-" * 50 + "\n")
-        logger.info(f"Feedback saved: rating={rating}")
+        print("\n🤖 Bot : Thank you for rating me : ",rating)
         return True
     except Exception as e:
         logger.error(f"Error saving feedback: {e}")
@@ -219,70 +219,69 @@ class ChatBot:
             logger.error(f"Error detecting feedback in message: {e}")
             return None
     
-    def get_feedback(self) -> Optional[Dict[str, Any]]:
+    def extract_feedback_from_response(self, response: str) -> Optional[Dict[str, Any]]:
         """
-        Get feedback from the user
+        Extract feedback (review and rating) from user's response
         
+        Args:
+            response: User's feedback response
+            
         Returns:
-            Optional[Dict[str, Any]]: Dictionary with review and rating if successful,
+            Optional[Dict[str, Any]]: Dictionary with review and rating if detected,
                                      None otherwise
         """
         try:
-            # Display the feedback request to the user directly
-            print("\nBefore you go, I'd love to hear your thoughts about our conversation!")
+            # First try to detect rating using pattern matching
+            feedback_result = self.detect_feedback_in_message(response)
             
-            # Get review
-            review = input("Your review (press Enter to skip): ").strip()
+            if feedback_result:
+                review, rating = feedback_result
+                return {"review": review, "rating": rating}
             
-            # If user skips review, ask if they're sure
-            if not review:
-                skip_confirm = input("Are you sure you want to skip leaving feedback? (y/n): ").strip().lower()
-                if skip_confirm.startswith('y'):
-                    print("No problem! Have a great day!")
-                    return None
-                review = input("Your review: ").strip()
-                while not review:
-                    review = input("Please enter a review, or type 'skip' to exit: ").strip()
-                    if review.lower() == 'skip':
-                        return None
+            # If no rating was found but there's text, use it as review only
+            if response.strip():
+                return {"review": response, "rating": None}
             
-            # Get and validate rating
-            rating = None
-            attempts = 0
-            max_attempts = 3
+            return None
             
-            while rating is None and attempts < max_attempts:
+        except Exception as e:
+            logger.error(f"Error extracting feedback from response: {e}")
+            return None
+    
+    def get_exit_feedback(self) -> Optional[Dict[str, Any]]:
+        """
+        Get feedback when user wants to exit
+        
+        Returns:
+            Optional[Dict[str, Any]]: Dictionary with review and rating if detected,
+                                     None otherwise
+        """
+        try:
+            # Ask for feedback directly without confirmation
+            print("\n🤖 Bot : Before you go, I'd love to hear your thoughts about our conversation!")
+            print("Please share your review and include a rating (1-5).")
+            
+            # Get feedback response
+            feedback_response = input("\n😊 Your feedback: ").strip()
+            
+            # Skip if empty
+            if not feedback_response:
+                print("No problem! Have a great day!")
+                return None
+            
+            # Try to extract feedback from the response
+            feedback_data = self.extract_feedback_from_response(feedback_response)
+            
+            # If no rating was detected, ask specifically for a rating
+            if feedback_data and feedback_data.get("rating") is None:
                 try:
-                    attempts += 1
-                    rating_input = input("Your rating (1-5) or press Enter to skip: ").strip()
-                    if not rating_input:
-                        skip_confirm = input("Skip rating? (y/n): ").strip().lower()
-                        if skip_confirm.startswith('y'):
-                            print("Thanks for your review!")
-                            # Return just the review without a rating
-                            return {"review": review, "rating": None}
-                    else:
+                    rating_input = input("Could you also rate our conversation from 1-5? ").strip()
+                    if rating_input:
                         rating_value = int(rating_input)
                         if 1 <= rating_value <= 5:
-                            rating = rating_value
-                        else:
-                            print("Please enter a number between 1 and 5.")
+                            feedback_data["rating"] = rating_value
                 except ValueError:
-                    print("Please enter a valid number.")
-                except KeyboardInterrupt:
-                    print("\nFeedback skipped.")
-                    return None
-            
-            # If we've exceeded attempts but still don't have a valid rating
-            if rating is None:
-                print("We'll continue without a rating.")
-                return {"review": review, "rating": None}
-            
-            # Create structured feedback data
-            feedback_data = {
-                "review": review,
-                "rating": rating
-            }
+                    print("No problem, we'll continue without a rating.")
             
             return feedback_data
             
@@ -290,7 +289,7 @@ class ChatBot:
             print("\nFeedback skipped.")
             return None
         except Exception as e:
-            logger.error(f"Error getting feedback: {e}")
+            logger.error(f"Error getting exit feedback: {e}")
             print("Sorry, I couldn't process your feedback correctly.")
             return None
     
@@ -313,6 +312,7 @@ class ChatBot:
                 # Send the message to Gemini
                 response = self.chat.send_message(
                     message
+                    
                 )
                 
                 # Check if Gemini detected feedback via function calling
@@ -351,21 +351,6 @@ class ChatBot:
         # Default fallback
         return "I couldn't process your request. Please try again.", None
     
-    def confirm_exit(self) -> bool:
-        """
-        Confirm if the user really wants to exit
-        
-        Returns:
-            bool: True if the user confirms exit, False otherwise
-        """
-        try:
-            confirmation = input("\nDo you want to end this conversation? (y/n): ").strip().lower()
-            return confirmation.startswith('y')
-        except KeyboardInterrupt:
-            return True
-        except Exception:
-            return False
-    
     def run(self):
         """Run the chatbot conversation loop"""
         print("\n🤖 Welcome to the Chat Bot! Type 'exit' when you're done.\n")
@@ -382,19 +367,21 @@ class ChatBot:
                 
                 # Check for exit intent
                 if self.detect_exit_intent(user_message):
-                    # if self.confirm_exit():
-                    #     feedback = self.get_feedback()
+                    # Get feedback directly without confirmation
+                    feedback = self.get_exit_feedback()
+                    
+                    if feedback:
+                        if feedback.get("rating") is not None:
+                            save_feedback(feedback["review"], feedback["rating"], self.chat_id)
+                        else:
+                            # Save feedback without rating
+                            review = feedback.get("review", "Good conversation")
+                            save_feedback(review, 0, self.chat_id)
                         
-                    #     if feedback and feedback.get("rating") is not None:
-                    #         save_feedback(feedback["review"], feedback["rating"], self.chat_id)
-                    #         print("\nThank you for your feedback!")
-                        
-                    print("\nThank you for chatting! Goodbye! 👋")
-                    #     conversation_active = False
-                    #     continue
-                    else:
-                        print("Great! Let's continue our conversation.")
-                        continue
+                    
+                    print("\n🤖 Bot : Thank you for chatting! Goodbye! 👋")
+                    conversation_active = False
+                    continue
                 
                 # Send message to Gemini and get response with potential feedback
                 bot_response, feedback_result = self.send_message(user_message)

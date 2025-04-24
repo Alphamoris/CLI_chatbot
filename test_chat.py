@@ -140,6 +140,54 @@ class TestChatBot(unittest.TestCase):
                 )
     
     @patch('google.generativeai.GenerativeModel')
+    def test_extract_feedback_from_response(self, mock_model):
+        """Test extracting feedback from user responses."""
+        # Mock the GenerativeModel to avoid API calls
+        mock_instance = MagicMock()
+        mock_model.return_value = mock_instance
+        mock_instance.start_chat.return_value = MagicMock()
+        
+        # Now we can import the ChatBot
+        from src.chat_app import ChatBot
+        
+        chatbot = ChatBot()
+        
+        # Test responses with ratings
+        responses_with_ratings = [
+            "I loved this chat, I'd give it a 5!",
+            "Good conversation, 4/5",
+            "It was okay, 3 stars",
+            "The conversation deserves a rating of 4"
+        ]
+        
+        for response in responses_with_ratings:
+            with self.subTest(response=response):
+                result = chatbot.extract_feedback_from_response(response)
+                self.assertIsNotNone(result)
+                self.assertIn("review", result)
+                self.assertIn("rating", result)
+                self.assertIsNotNone(result["rating"])
+                self.assertIsInstance(result["rating"], int)
+                self.assertGreaterEqual(result["rating"], 1)
+                self.assertLessEqual(result["rating"], 5)
+        
+        # Test responses without ratings
+        responses_without_ratings = [
+            "It was a good conversation.",
+            "I enjoyed talking with you.",
+            "Thanks for the help."
+        ]
+        
+        for response in responses_without_ratings:
+            with self.subTest(response=response):
+                result = chatbot.extract_feedback_from_response(response)
+                self.assertIsNotNone(result)
+                self.assertIn("review", result)
+                self.assertEqual(result["review"], response)
+                self.assertIn("rating", result)
+                self.assertIsNone(result["rating"])
+    
+    @patch('google.generativeai.GenerativeModel')
     def test_chat_initialization(self, mock_model):
         """Test that the chat bot initializes properly."""
         # Mock the model
@@ -203,9 +251,8 @@ def print_manual_test_results():
         os.makedirs("data", exist_ok=True)
         print(f"  {Fore.YELLOW}Created data directory{Style.RESET_ALL}")
     
-    # Test exit phrases
+    # Test exit phrases and feedback detection
     try:
-        exit_phrases = ["bye", "exit", "end chat", "quit", "goodbye"]
         print(f"\n{Fore.CYAN}Testing exit detection...{Style.RESET_ALL}")
         
         # Import with mocking to avoid actual API calls
@@ -213,6 +260,8 @@ def print_manual_test_results():
             from src.chat_app import ChatBot
             chatbot = ChatBot()
             
+            # Test exit phrases
+            exit_phrases = ["bye", "exit", "end chat", "quit", "goodbye"]
             for phrase in exit_phrases:
                 result = chatbot.detect_exit_intent(phrase)
                 print(f"  Phrase '{phrase}': {Fore.GREEN if result else Fore.RED}{'✓' if result else '✗'}{Style.RESET_ALL}")
@@ -237,6 +286,23 @@ def print_manual_test_results():
                     print(f"  Phrase '{phrase}': {Fore.GREEN}✓{Style.RESET_ALL} (Rating: {rating})")
                 else:
                     print(f"  Phrase '{phrase}': {Fore.RED}✗{Style.RESET_ALL}")
+            
+            # Test feedback extraction
+            print(f"\n{Fore.CYAN}Testing feedback extraction...{Style.RESET_ALL}")
+            extraction_phrases = [
+                "This was helpful, I'd rate it 5/5",
+                "Great conversation but could be better, 4 stars",
+                "Thanks for the help"  # No rating
+            ]
+            
+            for phrase in extraction_phrases:
+                result = chatbot.extract_feedback_from_response(phrase)
+                if result and result.get("rating"):
+                    print(f"  '{phrase}': {Fore.GREEN}✓{Style.RESET_ALL} (Review: '{result['review'][:20]}...', Rating: {result['rating']})")
+                elif result:
+                    print(f"  '{phrase}': {Fore.YELLOW}✓{Style.RESET_ALL} (Review: '{result['review']}', No rating)")
+                else:
+                    print(f"  '{phrase}': {Fore.RED}✗{Style.RESET_ALL}")
         
         print(f"\n{Fore.GREEN}All tests passed successfully!{Style.RESET_ALL}")
     except Exception as e:

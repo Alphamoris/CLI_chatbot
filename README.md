@@ -21,8 +21,9 @@ A powerful command-line chat application that lets you interact with Google's st
 
 - 🗣️ **Interactive Chat Interface** - Natural conversation with Google's Gemini AI
 - 🔍 **Smart Exit Detection** - Automatically detects when you want to end the chat
-- 📊 **Feedback Collection** - Gathers reviews and ratings when you exit
+- 📊 **Feedback Collection** - Gathers reviews and ratings through natural conversation
 - 🔄 **Natural Feedback Detection** - Recognizes casual feedback in conversation (e.g., "I'd give this chat a 4/5")
+- 💡 **Smart Feedback Extraction** - Extracts ratings and reviews from natural language responses
 - 💾 **Conversation History** - Saves your chat sessions for future reference
 - 🎨 **Colorful Interface** - Easy-to-read, aesthetically pleasing terminal output
 - 🛡️ **Robust Error Handling** - Detailed error messages and recovery options
@@ -114,10 +115,10 @@ Is there something specific you'd like help with?
 
 😊 You: bye
 
-I've enjoyed our conversation! Before you go, I'd appreciate your feedback.
+Before you go, I'd love to hear your thoughts about our conversation!
+Please share your review and include a rating (1-5).
 
-Your review: The bot responses were very helpful and natural.
-Your rating (1-5): 5
+😊 Your feedback: The conversation was helpful and informative, I'd rate it 4/5
 
 Thank you for your feedback!
 
@@ -196,8 +197,12 @@ You can modify these parameters in `src/chat_app.py`:
 
 The application collects feedback in two ways:
 
-1. **Exit Feedback**: When you exit the chat, you'll be prompted for a review and rating
-2. **Natural Conversation**: The app can detect feedback mentioned casually during conversation (e.g., "I'd give this chat a 4/5" or "This has been a 5-star experience")
+1. **During Conversation**: The app detects feedback mentioned casually during conversation (e.g., "I'd give this chat a 4/5" or "This has been a 5-star experience")
+
+2. **When Exiting**: Upon detecting exit intent, the bot directly asks for feedback in a natural way:
+   - Users can provide both review and rating in a single natural language response
+   - The system intelligently extracts the rating from the review text
+   - If no rating is found, it will ask specifically for a rating
 
 All feedback is saved to `data/feedback.txt` with timestamps and chat session IDs.
 
@@ -207,7 +212,8 @@ All feedback is saved to `data/feedback.txt` with timestamps and chat session ID
 2. Your messages are sent securely to Gemini's servers
 3. The AI generates responses based on its training
 4. For feedback detection, the app uses both pattern matching and Gemini's function calling to recognize casual feedback
-5. When feedback is detected in natural conversation, it's saved automatically and acknowledged
+5. When exiting, the app uses natural language processing to extract feedback from your response
+6. The feedback is saved automatically with acknowledgment
 
 ## 📝 License
 
