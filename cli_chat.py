@@ -6,6 +6,7 @@ This script runs a command-line chat interface powered by Gemini AI.
 
 import os
 import sys
+import json
 import logging
 import traceback
 import platform
@@ -33,6 +34,7 @@ def print_banner():
     print(f"{Fore.GREEN}      • Interactive chat powered by Google's Gemini AI{Style.RESET_ALL}")
     print(f"{Fore.GREEN}      • Smart and helpful CLI assistant{Style.RESET_ALL}")
     print(f"{Fore.GREEN}      • Exit intent detection implemented bot{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}      • Feedback detection from natural conversation{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'='*100}{Style.RESET_ALL}\n")
 
 
@@ -41,6 +43,8 @@ def check_dependencies():
     try:
         import google.generativeai
         import dotenv
+        import json
+        import re
         return True
     except ImportError as e:
         logger.error(f"Missing dependency: {e}")
@@ -98,6 +102,10 @@ def main():
                 print("\nThis looks like a network issue. Please check:")
                 print("1. Your internet connection is working")
                 print("2. Any firewall or proxy settings that might block the connection")
+            elif "function" in str(e).lower() or "tool" in str(e).lower():
+                print("\nThis looks like an issue with the function calling features:")
+                print("1. Check if your Gemini API key has access to the latest model features")
+                print("2. Verify that the model supports function calling")
             else:
                 # Show debug info for developers
                 print(f"\n{Fore.YELLOW}Debug information:{Style.RESET_ALL}")

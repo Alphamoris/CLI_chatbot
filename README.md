@@ -22,6 +22,7 @@ A powerful command-line chat application that lets you interact with Google's st
 - 🗣️ **Interactive Chat Interface** - Natural conversation with Google's Gemini AI
 - 🔍 **Smart Exit Detection** - Automatically detects when you want to end the chat
 - 📊 **Feedback Collection** - Gathers reviews and ratings when you exit
+- 🔄 **Natural Feedback Detection** - Recognizes casual feedback in conversation (e.g., "I'd give this chat a 4/5")
 - 💾 **Conversation History** - Saves your chat sessions for future reference
 - 🎨 **Colorful Interface** - Easy-to-read, aesthetically pleasing terminal output
 - 🛡️ **Robust Error Handling** - Detailed error messages and recovery options
@@ -86,6 +87,7 @@ python cli_chat.py
 • Interactive chat powered by Google's Gemini AI
 • Smart and helpful CLI assistant
 • Exit intent detection implemented bot
+• Feedback detection from natural conversation
 =============================================================
 
 Initializing Gemini chat...
@@ -105,6 +107,10 @@ Initializing Gemini chat...
 - General conversation
 
 Is there something specific you'd like help with?
+
+😊 You: You've been really helpful, I would rate this conversation 5 out of 5!
+
+🤖 Bot: Thanks for your rating of 5/5! I've saved your feedback. I'm glad I could be helpful! Is there anything else you'd like assistance with today?
 
 😊 You: bye
 
@@ -188,20 +194,20 @@ You can modify these parameters in `src/chat_app.py`:
 
 ## 📊 Feedback Collection
 
-When you exit the chat, the application:
+The application collects feedback in two ways:
 
-1. Asks for a text review
-2. Collects a rating (1-5 stars)
-3. Saves this information to `data/feedback.txt`
+1. **Exit Feedback**: When you exit the chat, you'll be prompted for a review and rating
+2. **Natural Conversation**: The app can detect feedback mentioned casually during conversation (e.g., "I'd give this chat a 4/5" or "This has been a 5-star experience")
 
-This data can help improve the application over time.
+All feedback is saved to `data/feedback.txt` with timestamps and chat session IDs.
 
 ## 🧠 How It Works
 
 1. The application uses Google's Gemini API for natural language understanding
 2. Your messages are sent securely to Gemini's servers
 3. The AI generates responses based on its training
-4. For feedback collection, the app uses Gemini's function calling feature
+4. For feedback detection, the app uses both pattern matching and Gemini's function calling to recognize casual feedback
+5. When feedback is detected in natural conversation, it's saved automatically and acknowledged
 
 ## 📝 License
 

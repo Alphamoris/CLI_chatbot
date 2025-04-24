@@ -81,6 +81,65 @@ class TestChatBot(unittest.TestCase):
                 )
     
     @patch('google.generativeai.GenerativeModel')
+    def test_feedback_detection(self, mock_model):
+        """Test the feedback detection functionality."""
+        # Mock the GenerativeModel to avoid API calls
+        mock_instance = MagicMock()
+        mock_model.return_value = mock_instance
+        mock_instance.start_chat.return_value = MagicMock()
+        
+        # Now we can import the ChatBot
+        from src.chat_app import ChatBot
+        
+        chatbot = ChatBot()
+        
+        # Test feedback phrases that should be detected
+        feedback_phrases = [
+            "I give this chat a 5",
+            "I'd rate this conversation 4 out of 5",
+            "This deserves a rating of 3",
+            "I would give you 4 stars",
+            "Overall I'd say this is a 5/5 experience",
+            "Thumbs up 5 for this chat",
+            "I'd give this chat session a solid 4",
+            "This was a 3 point conversation",
+            "I'd rate this 4",
+            "Would rate this experience 5/5"
+        ]
+        
+        for phrase in feedback_phrases:
+            with self.subTest(phrase=phrase):
+                result = chatbot.detect_feedback_in_message(phrase)
+                self.assertIsNotNone(
+                    result,
+                    f"Failed to detect feedback in '{phrase}'"
+                )
+                review, rating = result
+                self.assertIsInstance(rating, int)
+                self.assertGreaterEqual(rating, 1)
+                self.assertLessEqual(rating, 5)
+        
+        # Test phrases that should not be detected as feedback
+        non_feedback_phrases = [
+            "Hello there",
+            "What's the weather like?",
+            "Tell me about the number 5",
+            "I have 5 apples",
+            "This is interesting",
+            "Can you help me with something?",
+            "The year is 2023",
+            "I like talking with you"
+        ]
+        
+        for phrase in non_feedback_phrases:
+            with self.subTest(phrase=phrase):
+                result = chatbot.detect_feedback_in_message(phrase)
+                self.assertIsNone(
+                    result,
+                    f"Incorrectly detected feedback in '{phrase}'"
+                )
+    
+    @patch('google.generativeai.GenerativeModel')
     def test_chat_initialization(self, mock_model):
         """Test that the chat bot initializes properly."""
         # Mock the model
@@ -98,6 +157,35 @@ class TestChatBot(unittest.TestCase):
             self.assertIsNotNone(chatbot.chat)
         except Exception as e:
             self.fail(f"ChatBot initialization failed with error: {e}")
+    
+    @patch('google.generativeai.GenerativeModel')
+    def test_send_message_with_feedback(self, mock_model):
+        """Test sending messages with feedback detection."""
+        # Setup mocks
+        mock_instance = MagicMock()
+        mock_model.return_value = mock_instance
+        
+        mock_chat = MagicMock()
+        mock_instance.start_chat.return_value = mock_chat
+        
+        # Configure mock response
+        mock_response = MagicMock()
+        mock_response.text = "I understand you enjoyed our conversation."
+        
+        mock_chat.send_message.return_value = mock_response
+        
+        # Import and initialize ChatBot
+        from src.chat_app import ChatBot
+        
+        chatbot = ChatBot()
+        
+        # Test with a message containing feedback
+        response_text, feedback = chatbot.send_message("I'd rate this conversation 4 out of 5!")
+        
+        # Verify the response
+        self.assertEqual(response_text, "I understand you enjoyed our conversation.")
+        self.assertIsNotNone(feedback)
+        self.assertEqual(feedback[1], 4)  # Rating should be 4
 
 def print_manual_test_results():
     """Print a simple manual test for visual verification."""
@@ -133,6 +221,22 @@ def print_manual_test_results():
             non_exit = "hello"
             result = chatbot.detect_exit_intent(non_exit)
             print(f"  Phrase '{non_exit}' (should not exit): {Fore.GREEN if not result else Fore.RED}{'✓' if not result else '✗'}{Style.RESET_ALL}")
+        
+            # Test feedback detection
+            print(f"\n{Fore.CYAN}Testing feedback detection...{Style.RESET_ALL}")
+            feedback_phrases = [
+                "I'd rate this conversation 4 out of 5",
+                "I give this chat a 5",
+                "This deserves a rating of 3"
+            ]
+            
+            for phrase in feedback_phrases:
+                result = chatbot.detect_feedback_in_message(phrase)
+                if result:
+                    review, rating = result
+                    print(f"  Phrase '{phrase}': {Fore.GREEN}✓{Style.RESET_ALL} (Rating: {rating})")
+                else:
+                    print(f"  Phrase '{phrase}': {Fore.RED}✗{Style.RESET_ALL}")
         
         print(f"\n{Fore.GREEN}All tests passed successfully!{Style.RESET_ALL}")
     except Exception as e:
